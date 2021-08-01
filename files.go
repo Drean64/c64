@@ -1,9 +1,9 @@
 package c64
 
 import (
-	"strconv"
 	"errors"
 	"os"
+	"strconv"
 )
 
 // Reads a 16 bit int from 2 bytes little endian wise
@@ -27,7 +27,7 @@ func (c64 *C64) LoadPRG(file *os.File) (uint16, error) {
 	if err != nil {
 		return 0, err
 	} else if count != 2 {
-		return 0, errors.New("Couldn't read 2-byte load address from file header")
+		return 0, errors.New("couldn't read 2-byte load address from file header")
 	}
 	address := getUint16(header)
 	prgSize := uint16(finfo.Size() - 2)
@@ -36,7 +36,7 @@ func (c64 *C64) LoadPRG(file *os.File) (uint16, error) {
 	if c64.isIOon() &&
 		((address >= 0xD000 && address <= 0xDFFF) ||
 			(address < 0xD000 && address + prgSize > 0xD000)) {
-		return 0, errors.New("Loading file would overflow into IO area")
+		return 0, errors.New("loading file would overflow into IO area")
 	}
 	// Read the PRG file minus its header into RAM
 	file.ReadAt(c64.RAM[address : address + prgSize], 2)
@@ -51,7 +51,7 @@ func (c64 *C64) LoadPRG(file *os.File) (uint16, error) {
 	// Else scan BASIC program for SYS command to get address of the start of the machine code program
 	// WIP For now we just assume a loader that does a SYS in the first line
 	if ptr[0] != 0x9E { // $9E token is Basic SYS command
-		return 0, errors.New("Unrecognized BASIC loader")
+		return 0, errors.New("unrecognized BASIC loader")
 	}
 
 	strAddress := ""
