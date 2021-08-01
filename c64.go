@@ -1,7 +1,7 @@
 package c64
 
 import (
-	"github.com/ErnestoBorio/cpu6502"
+	"github.com/Drean64/cpu6502"
 )
 
 const (
@@ -21,28 +21,20 @@ var Scanlines = [2]int{
 	PAL_scanlines,  // [PAL=1]  = 312
 }
 
-// Commodore 64 virtual machine
+// C64 models a Commodore 64 virtual machine
 type C64 struct {
 	CPU  cpu6502.CPU
 	RAM  [0x10000]byte // Whole 64KB of RAM
-	IO   [0x1000]byte  // WIP for now just store the bytes raw
+	IO   [0x1000]byte  // @todo WIP for now just store the bytes raw
 	Type int           // NTSC or PAL
 	
-	VIC struct {
-		scanline        int  // Current rendering scanline
-		BadLine         bool // Whether the current scanline is a bad line
-		Cycles2scanline int  // How many cycles are left to reach the beginning of next scanline
-		rasterIRQline   int  // Next scanline at which fire an IRQ
-	}
-
-	Mods struct {
-		raster []struct{line int; handler *func(int)}
-	}
+	Vic VIC
 }
 
 // Make creates and initializes a C64 instance.
 func Make(c64type int) *C64 {
-	c64 := new(C64)
+	c64 := new (C64)
+	c64.CPU = cpu6502.CPU{}
 	c64.Type = c64type // PAL | NTSC
 	c64.Init()
 	return c64
@@ -50,13 +42,13 @@ func Make(c64type int) *C64 {
 
 // Initialize the C64 VM instance
 func (c64 *C64) Init() {
-	c64.CPU = cpu6502.CPU{}
 	c64.CPU.Init(c64.readMemory, c64.writeMemory)
 	
-	c64.VIC.BadLine = false
-	c64.VIC.rasterIRQline = 0
+	c64.Vic.BadLine = false
+	c64.Vic.rasterIRQline = 0
 	c64.setScanline(0)
-	c64.VIC.Cycles2scanline = CyclesPerScanline
+	c64.Vic.Cycles2scanline = CyclesPerScanline
+	c64.Vic.setBank(0);
 
 	// Init memory. Mirrored memory has to be set by appropriate function calls. Non mirrored memory can be set directly
 	// Initial RAM state
@@ -70,6 +62,7 @@ func (c64 *C64) Init() {
 
 	// IO Registers, 0xD000 .. 0xDFFF
 	c64.IO[0x11] = 0b00011011 // Screen control register #1
+	c64.IO[0xD00] = 0b00111011 // VIC bank selection, RS232 and serial ports
 }
 
 // Makes C64 set given address to execute next
@@ -84,17 +77,17 @@ func (c64 *C64) isBasicOn() bool {
 
 // Whether Character generator ROM is switched on or not
 func (c64 *C64) isChargenOn() bool {
-	return (c64.RAM[1]&0b100 == 0) && (c64.RAM[1]&0b11 != 0) // [$0001] bits: 0xx but not 000
+	return (c64.RAM[1] & 0b100 == 0) && (c64.RAM[1] & 0b11 != 0) // [$0001] bits: 0xx but not 000
 }
 
 // Whether IO register bank is switched on or not
 func (c64 *C64) isIOon() bool {
-	return (c64.RAM[1]&0b100 != 0) && (c64.RAM[1]&0b11 != 0) // [$0001] bits: 1xx but not 100
+	return (c64.RAM[1] & 0b100 != 0) && (c64.RAM[1] & 0b11 != 0) // [$0001] bits: 1xx but not 100
 }
 
 // Whether Kernal ROM is switched on or not
 func (c64 *C64) isKernalOn() bool {
-	return c64.RAM[1]&0b10 != 0
+	return c64.RAM[1] & 0b10 != 0
 }
 
 func (c64 *C64) getMaxScanlines() int {
@@ -103,22 +96,12 @@ func (c64 *C64) getMaxScanlines() int {
 
 func (c64 *C64) Run() {
 	for {
-		c64.VIC.Cycles2scanline -= c64.CPU.Step()
+		c64.Vic.Cycles2scanline -= c64.CPU.Step()
 
-		if c64.VIC.BadLine && c64.VIC.Cycles2scanline <= 40 {
+		if c64.Vic.BadLine && c64.Vic.Cycles2scanline <= 40 {
 			// Steal the CPU 40 cycles from the end of the scanline (WIP is this right?)
-			c64.VIC.Cycles2scanline -= 40
+			c64.Vic.Cycles2scanline -= 40
 		}
-		// WIP: sprites in this scanline also steal CPU cycles, see vic-ii.txt (2 cycles per sprite)
-
-		if c64.VIC.Cycles2scanline <= 0 {
-			c64.VIC.Cycles2scanline += CyclesPerScanline
-					
-			if c64.VIC.scanline >= c64.getMaxScanlines() {
-				c64.setScanline(0)
-			} else {
-				c64.setScanline(c64.VIC.scanline+1)
-			}
-		}
+		// @todo WIP: sprites in this scanline also steal CPU cycles, see vic-ii.txt (2 cycles per sprite)
 	}
 }

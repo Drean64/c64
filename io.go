@@ -1,19 +1,18 @@
 package c64
 
-/*
-	<io.go> Handles all writes and reads in the I/O memory mapped registers $D000..$DFFF
+/**
+ *	<io.go> Handles all writes and reads in the I/O memory mapped registers $D000..$DFFF
+ *	Mirrored memory, like $D000..$D03F which is mirrored up to $D3FF, is only ever read and written from the original,
+ *	unmirrored addresses, I.E. $D040 will never be read from or written  to through these functions, trying to do so
+ *	will actually read from or write to $D000.
+ *	Reading and writing to those mirror addresses is up to mods and has to be done through direct access to C64.IO[]
+ */
 
-	Mirrored memory, like $D000..$D03F which is mirrored up to $D3FF, is only ever read and written from the original,
-	unmirrored addresses, I.E. $D040 will never be read from or written  to through these functions, trying to do so
-	will actually read from or write to $D000.
-	Reading and writing to those mirror addresses is up to mods and has to be done through direct access to C64.IO[]
-*/
-
-/* TODO
-	Fijandome en VICE, si lees $D020, los 4 high bits vienen todos en 1.
-	Sospecho que todos los bits no usados siempre se leen como 1, tener en cuenta.
-	Como las direcciones tipo $D02F que siempre devuelven $FF.
-*/
+/** TODO
+ *	Fijandome en VICE, si lees $D020, los 4 high bits vienen todos en 1.
+ *	Sospecho que todos los bits no usados siempre se leen como 1, tener en cuenta.
+ *	Como las direcciones tipo $D02F que siempre devuelven $FF.
+ */
 
 // Read I/O ports
 // address is assumed to be $D000..$DFFF
@@ -50,5 +49,8 @@ func (c64 *C64) WriteIO(address uint16, value byte) {
 	} else { // Generic IO write WIP
 		// Transpose address into space $0..$FFF of IO bank
 		c64.IO[address & 0xFFF] = value
+		if address == 0xDD00 {
+			c64.Vic.setBank( ^(value & 0b11)) // Bitwise not of bits 0 & 1 turns 0,1,2,3 into 3,2,1,0
+		}
 	}
 }
