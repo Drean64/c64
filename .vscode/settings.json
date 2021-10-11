@@ -1,0 +1,13 @@
+{
+	"go.lintOnSave": "off",
+	"go.formatTool": "gofumports",
+	"[go]": {
+		"editor.formatOnSave": true,
+		"editor.codeActionsOnSave": {
+			"source.organizeImports": true
+		}
+	},
+	"gopls": {
+		"completeUnimported": true
+	}
+}
