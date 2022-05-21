@@ -107,8 +107,8 @@ func (c64 *C64) Run(commands <-chan interface{}, play <-chan bool) {
 				return
 			}
 		default:
+			c64.Step()
 		}
-		c64.Step()
 	}
 }
 
